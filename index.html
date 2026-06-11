@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V18.4 (안정형)</title>
+  <title>VR 시기능 훈련 시스템</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -20,18 +20,8 @@
     label { display: block; margin-bottom: 6px; font-size: 12px; color: #cbd5e1; font-weight: bold; }
     select, input[type="range"] { width: 100%; padding: 6px; background: #1e293b; color: white; border: 1px solid #475569; border-radius: 6px; box-sizing: border-box; font-size: 12px; }
     .display-value { float: right; color: #38bdf8; font-weight: bold; }
-    .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 13px; transition: all 0.2s ease; }
-    
-    /* 대기 상태 초록 버튼 */
+    .btn { width: 100%; padding: 10px; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 5px; font-size: 13px; }
     #start-btn { background: #22c55e; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); }
-    /* 1차 락 해제 후 대기 상태 노란 버튼 */
-    #start-btn.ready-to-launch { background: #eab308; color: #000; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.5); animation: pulse 1.5s infinite; }
-    
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); }
-    }
     
     /* 오른쪽 스코어 및 실시간 기록실 */
     #score-board { 
@@ -141,7 +131,7 @@
       <input type="range" id="bg-speed-slider" min="0" max="60" value="2" step="1">
     </div>
     
-    <button id="start-btn" class="btn" onclick="handleStartButtonClick()">▶️ 훈련 시작</button>
+    <button id="start-btn" class="btn" onclick="startFusionTraining()">▶️ 훈련 시작</button>
   </div>
 
   <div id="score-board">
@@ -201,19 +191,20 @@
 
   <script>
     let currentGridSize = 6; 
-    let isBrowserUnlocked = false; // 브라우저 보안 잠금 해제 상태 관리 변수
-
+    
     function updateGridTexture() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
       bgCanvas.width = 512; bgCanvas.height = 512;
       bgCtx.clearRect(0, 0, 512, 512);
+      
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
           bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
           bgCtx.fillRect(c * 64, r * 64, 64, 64);
         }
       }
+      
       const sky = document.getElementById('rotating-bg');
       if (sky) {
         let repeatX = currentGridSize * 2; let repeatY = currentGridSize;
@@ -261,42 +252,17 @@
       document.getElementById('range-txt').innerText = randomRange.toFixed(2);
       if(isTrainingActive) renderRandomTargetsOnly();
     });
-    
     document.getElementById('bg-speed-slider').addEventListener('input', (e) => {
       rotationSpeed = parseInt(e.target.value);
       document.getElementById('bg-speed-txt').innerText = rotationSpeed;
     });
 
-    // [핵심 변경] 원장님이 정의하신 2단계 클릭 프로세스 공식 구현 함수
-    function handleStartButtonClick() {
-      const startBtn = document.getElementById('start-btn');
-
-      // 단계 1: 첫 번째 클릭 (오디오 객체를 생성하며 브라우저 보안 락을 완벽히 해제)
-      if (!isBrowserUnlocked) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // 미세한 음소거 주파수를 발생시켜 시스템 활성화 도장 받기
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        gainNode.gain.setValueAtTime(0.001, audioCtx.currentTime);
-        osc.connect(gainNode); gainNode.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.05);
-
-        // 버튼 상태 변경 및 2차 대기 전환
-        isBrowserUnlocked = true;
-        startBtn.innerText = "🚀 한 번 더 누르면 시작됩니다!";
-        startBtn.classList.add('ready-to-launch');
-        document.getElementById('status-txt').innerText = "보안 잠금 해제 완료. 다시 누르세요.";
-        return; 
-      }
-
-      // 단계 2: 두 번째 클릭 (이미 해제된 상태이므로 VR 모드로 에러 없이 강제 진입)
-      startFusionTraining();
-    }
-
     function startFusionTraining() {
-      isTrainingActive = true; isPopping = false;
+      // 원장님이 처음에 주신 순수 구동 로직 그대로 복원
+      isTrainingActive = true; 
+      isPopping = false;
       targetSeconds = parseInt(document.getElementById('training-time-select').value);
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       
       document.getElementById('control-panel').style.display = 'none';
       document.getElementById('exit-vr-control').style.display = 'block';
@@ -543,13 +509,6 @@
       if (gazeTimer) { clearTimeout(gazeTimer); gazeTimer = null; }
       if (elapsedInterval) clearInterval(elapsedInterval);
       document.getElementById('magic-eye-board').setAttribute('visible', 'false');
-      
-      // 재시작을 위해 잠금 및 버튼 상태 완전 초기화
-      isBrowserUnlocked = false;
-      const startBtn = document.getElementById('start-btn');
-      startBtn.innerText = "▶️ 훈련 시작";
-      startBtn.classList.remove('ready-to-launch');
-
       document.getElementById('control-panel').style.display = 'block';
       document.getElementById('exit-vr-control').style.display = 'none';
       const sceneEl = document.querySelector('a-scene');
