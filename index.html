@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V18.1</title>
+  <title>VR 시기능 훈련 시스템 V18.2</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -190,20 +190,16 @@
   </a-scene>
 
   <script>
-    // 기본 격자 한 칸의 반복 횟수 (낮을수록 작아지고 촘촘해짐)
     let currentGridSize = 6; 
     
-    // 격자를 그리고 실시간으로 매핑 크기를 매칭해주는 고성능 함수
     function updateGridTexture() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
       
-      // 내부 캔버스는 언제나 깨끗하고 선명하게 고정 처리
       bgCanvas.width = 512;
       bgCanvas.height = 512;
       bgCtx.clearRect(0, 0, 512, 512);
       
-      // 언제나 완벽한 체스판 구조 유지
       for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
           bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
@@ -213,8 +209,6 @@
       
       const sky = document.getElementById('rotating-bg');
       if (sky) {
-        // [핵심 버그 수정 연동] 슬라이더 값에 맞춰 실시간으로 repeat 값을 세팅!
-        // 원장님의 직관에 맞춰 수식을 제어합니다.
         let repeatX = currentGridSize * 2;
         let repeatY = currentGridSize;
         
@@ -251,7 +245,6 @@
       document.getElementById('auto-time-group').style.display = (runMode === 'auto') ? 'block' : 'none';
     }
 
-    // [격자 크기 리스너] 왼쪽으로 낮추면 진짜 작아지고, 오른쪽으로 밀면 진짜 커집니다!
     document.getElementById('grid-size-slider').addEventListener('input', (e) => {
       currentGridSize = parseInt(e.target.value);
       
@@ -266,7 +259,6 @@
       updateGridTexture();
     });
 
-    // 배경 반경 크기 실시간 축소/확대 제어 리스너
     document.getElementById('bg-size-slider').addEventListener('input', (e) => {
       const radiusVal = parseInt(e.target.value);
       document.getElementById('bg-size-txt').innerText = radiusVal + "m";
@@ -607,7 +599,7 @@
       if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
     }
 
-    // 초기화 시 격자 텍스처를 첫 적용
+    // [핵심 해결] 이름이 바뀐 텍스처 초기화 함수로 명확하게 호출을 변경
     updateGridTexture();
     setupVRHardwareLayers();
     animateBackgroundAndScroll();
