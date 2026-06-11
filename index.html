@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.3</title>
+  <title>VR 시기능 훈련 시스템 V17.4</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -154,7 +154,7 @@
       <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="60" height="120" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="120" height="240" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
@@ -185,11 +185,9 @@
   </a-scene>
 
   <script>
-    // 시작 단계 고정 (2단계 = 값 8)
     let currentStep = 2;
     let rowsCols = 8;
 
-    // 슬라이더 단계별 실시간 매핑 함수 (6, 8, 10, 12, 14 짝수 고정)
     function mapStepToRowsCols(step) {
       if (step === 1) return 6;
       if (step === 2) return 8;
@@ -223,22 +221,20 @@
       
       const sky = document.getElementById('rotating-bg');
       if (sky && sky.components.material) {
-        // 격자 수가 바뀌어도 깨지지 않도록 repeat 비율을 유연하게 조정
-        const repeatX = Math.max(4, Math.floor(48 / rowsCols));
-        const repeatY = Math.max(2, Math.floor(24 / rowsCols));
+        // 거리 원격화에 맞춰 왜곡 현상이 없도록 매핑 스케일(repeat) 비율 최적화 유지
+        const repeatX = Math.max(8, Math.floor(96 / rowsCols));
+        const repeatY = Math.max(4, Math.floor(48 / rowsCols));
         
-        // [수정 포인트] material을 리셋할 때 기존의 회전값(rotation)이 유실되거나 꼬이지 않도록 명확히 분리 및 보존
         const currentRot = sky.getAttribute('rotation');
+        const currentPos = sky.getAttribute('position');
         
         sky.setAttribute('material', {
           src: '#bgCheckerCanvas',
           repeat: `${repeatX} ${repeatY}`
         });
         
-        // 기존 회전 상태를 안전하게 재할당하여 수직 모드에서 다가오는 버그 차단
-        if (currentRot) {
-          sky.setAttribute('rotation', currentRot);
-        }
+        if (currentRot) sky.setAttribute('rotation', currentRot);
+        if (currentPos) sky.setAttribute('position', currentPos);
         
         if (sky.components.material.material && sky.components.material.material.map) {
           sky.components.material.material.map.needsUpdate = true;
@@ -264,7 +260,6 @@
       document.getElementById('auto-time-group').style.display = (runMode === 'auto') ? 'block' : 'none';
     }
 
-    // [수정 핵심] 조종기를 조작할 때 수치가 걸림 없이 즉각 변하고 실시간 텍스처를 갱신하도록 처리
     document.getElementById('grid-size-slider').addEventListener('input', (e) => {
       currentStep = parseInt(e.target.value);
       rowsCols = mapStepToRowsCols(currentStep);
@@ -383,7 +378,6 @@
       }
     }
 
-    // 하드웨어 레이어 설정
     function setupVRHardwareLayers() {
       const sceneEl = document.querySelector('a-scene');
       sceneEl.addEventListener('enter-vr', () => {
@@ -477,6 +471,8 @@
             directionKr = "좌측 수평 스크롤 (⬅)";
             currentRotationY -= (rotationSpeed * 0.1);
           }
+          // 수평 이동 시 시야 중심 정렬 유지
+          sky.setAttribute('position', '0 0 0');
           sky.setAttribute('rotation', `0 ${currentRotationY} 0`);
           
         } else if (activeBgDirection === "up" || activeBgDirection === "down") {
@@ -487,6 +483,9 @@
             directionKr = "하측 수직 스크롤 (⬇)";
             currentRotationX += (rotationSpeed * 0.1);
           }
+          // [수정 핵심] 수직 90도 회전 시 실린더 내벽이 면으로 밀착하여 코앞을 가로막지 않도록, 
+          // 깊이(Z축) 방향으로 -45 만큼 오프셋을 주어 저 멀리 아득한 정면에 투사되도록 물리적 간격 조정
+          sky.setAttribute('position', '0 0 -45');
           sky.setAttribute('rotation', `${currentRotationX} 0 90`);
         }
       }
