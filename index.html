@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.6</title>
+  <title>VR 시기능 훈련 시스템 V17.7</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -112,8 +112,8 @@
     </div>
 
     <div class="panel-group">
-      <label>🏁 배경 격자 밀도/크기 조절 <span class="display-value" id="grid-size-txt">8</span></label>
-      <input type="range" id="grid-size-slider" min="2" max="24" value="8" step="1">
+      <label>🏁 배경 격자 분할 밀도(촘촘함) <span class="display-value" id="grid-size-txt">8</span></label>
+      <input type="range" id="grid-size-slider" min="4" max="32" value="8" step="1">
     </div>
 
     <div class="panel-group">
@@ -185,7 +185,8 @@
   </a-scene>
 
   <script>
-    let rowsCols = 8; 
+    // [수정] 기본 시작 분할 상태를 안정적인 8로 변경해 둡니다.
+    let rowsCols = 8;
     
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
@@ -467,7 +468,6 @@
         
         let totalMin = Math.floor((targetSeconds - totalSecondsElapsed) / 60);
         let totalSec = (targetSeconds - totalSecondsElapsed) % 60;
-        // [긴급 수정] 중복된 오타 세미콜론(;)을 완전히 삭제했습니다.
         document.getElementById('val-time').innerText = `${totalMin.toString().padStart(2, '0')}:${totalSec.toString().padStart(2, '0')}`;
         
         const runMode = document.getElementById('run-mode-select').value;
