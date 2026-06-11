@@ -483,9 +483,8 @@
             directionKr = "하측 수직 스크롤 (⬇)";
             currentRotationX += (rotationSpeed * 0.1);
           }
-          // [수정 핵심] 수직 90도 회전 시 실린더 내벽이 면으로 밀착하여 코앞을 가로막지 않도록, 
-          // 깊이(Z축) 방향으로 -45 만큼 오프셋을 주어 저 멀리 아득한 정면에 투사되도록 물리적 간격 조정
-          sky.setAttribute('position', '0 0 -45');
+          // [수정] 수직 모드일 때 배경이 눈앞으로 다가오지 않도록 깊이(Z)를 -90으로 멀리 고정
+          sky.setAttribute('position', '0 0 -90');
           sky.setAttribute('rotation', `${currentRotationX} 0 90`);
         }
       }
