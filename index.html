@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.2</title>
+  <title>VR 시기능 훈련 시스템 V17.3</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -113,7 +113,7 @@
 
     <div class="panel-group">
       <label>🏁 저시력용 배경 격자 크기 <span class="display-value" id="grid-size-txt">값: 8 (기본)</span></label>
-      <input type="range" id="grid-size-slider" min="6" max="14" value="8" step="2">
+      <input type="range" id="grid-size-slider" min="1" max="5" value="2" step="1">
     </div>
 
     <div class="panel-group">
@@ -185,13 +185,24 @@
   </a-scene>
 
   <script>
+    // 시작 단계 고정 (2단계 = 값 8)
+    let currentStep = 2;
     let rowsCols = 8;
+
+    // 슬라이더 단계별 실시간 매핑 함수 (6, 8, 10, 12, 14 짝수 고정)
+    function mapStepToRowsCols(step) {
+      if (step === 1) return 6;
+      if (step === 2) return 8;
+      if (step === 3) return 10;
+      if (step === 4) return 12;
+      if (step === 5) return 14;
+      return 8;
+    }
 
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
       
-      // 격자 해상도가 어긋나 뭉개지는 현상을 막기 위해 완벽하게 매칭하는 스케일링 기법 적용
       const unitSize = 64; 
       const dynamicSize = rowsCols * unitSize;
       
@@ -236,9 +247,10 @@
       document.getElementById('auto-time-group').style.display = (runMode === 'auto') ? 'block' : 'none';
     }
 
-    // 슬라이더를 조작할 때 6, 8, 10, 12, 14 단위로만 정확히 동작하도록 수정
+    // [수정 핵심] 조종기를 조작할 때 수치가 걸림 없이 즉각 변하고 실시간 텍스처를 갱신하도록 처리
     document.getElementById('grid-size-slider').addEventListener('input', (e) => {
-      rowsCols = parseInt(e.target.value);
+      currentStep = parseInt(e.target.value);
+      rowsCols = mapStepToRowsCols(currentStep);
       
       let labelText = `값: ${rowsCols}`;
       if (rowsCols === 8) labelText += " (기본)";
@@ -354,6 +366,7 @@
       }
     }
 
+    // 하드웨어 레이어 설정
     function setupVRHardwareLayers() {
       const sceneEl = document.querySelector('a-scene');
       sceneEl.addEventListener('enter-vr', () => {
