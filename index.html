@@ -154,11 +154,11 @@
       <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="120" height="240" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="250" height="500" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
+        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 500; interval: 10;"></a-entity>
         
         <a-ring id="gaze-ring-left" radius-inner="0.02" radius-outer="0.03" color="#000000" position="-0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
         <a-ring id="gaze-ring-right" radius-inner="0.02" radius-outer="0.03" color="#000000" position="0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
@@ -200,17 +200,6 @@
     let currentRotationY = 0;
     let currentRotationX = 0;
 
-    // 현재 스크롤 방향 상태를 실시간 확인하기 위한 도우미 함수
-    function getActiveScrollDirection() {
-      const runMode = document.getElementById('run-mode-select').value;
-      if (runMode === "manual") {
-        return document.getElementById('manual-dir-select').value;
-      } else {
-        const steps = ["right", "left", "up", "down"];
-        return steps[autoStep];
-      }
-    }
-
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
@@ -232,10 +221,13 @@
       
       const sky = document.getElementById('rotating-bg');
       if (sky && sky.components.material) {
-        const repeatX = Math.max(8, Math.floor(96 / rowsCols));
-        const repeatY = Math.max(4, Math.floor(48 / rowsCols));
+        // [수정포인트] 커진 공간 규모(반지름 250)에 비례하도록 repeat 매핑 연산 비율을 상향하여 
+        // 실린더가 어느 방향으로 누워도 촘촘해지거나 압착되지 않도록 고정
+        const repeatX = Math.max(16, Math.floor(192 / rowsCols));
+        const repeatY = Math.max(8, Math.floor(96 / rowsCols));
         
         const currentRot = sky.getAttribute('rotation');
+        const currentPos = sky.getAttribute('position');
         
         sky.setAttribute('material', {
           src: '#bgCheckerCanvas',
@@ -243,15 +235,7 @@
         });
         
         if (currentRot) sky.setAttribute('rotation', currentRot);
-        
-        // [수정 포인트] 풍선이 터지면서 캔버스가 리드로우될 때, 현재 방향 모드를 검사하여
-        // 수직 훈련 모드('up', 'down') 상태라면 오프셋 거리(0 0 -45)가 파괴되지 않고 완벽하게 강제 고정되도록 예외 처리
-        const activeDir = getActiveScrollDirection();
-        if (activeDir === "up" || activeDir === "down") {
-          sky.setAttribute('position', '0 0 -45');
-        } else {
-          sky.setAttribute('position', '0 0 0');
-        }
+        if (currentPos) sky.setAttribute('position', currentPos);
         
         if (sky.components.material.material && sky.components.material.material.map) {
           sky.components.material.material.map.needsUpdate = true;
@@ -466,9 +450,17 @@
       requestAnimationFrame(animateBackgroundAndScroll);
       if (!isTrainingActive) return;
 
-      const activeBgDirection = getActiveScrollDirection();
-      const sky = document.getElementById('rotating-bg');
       const runMode = document.getElementById('run-mode-select').value;
+      let activeBgDirection = "right";
+
+      if (runMode === "manual") {
+        activeBgDirection = document.getElementById('manual-dir-select').value;
+      } else {
+        const steps = ["right", "left", "up", "down"];
+        activeBgDirection = steps[autoStep];
+      }
+
+      const sky = document.getElementById('rotating-bg');
       let directionKr = "";
 
       if (sky) {
@@ -480,6 +472,7 @@
             directionKr = "좌측 수평 스크롤 (⬅)";
             currentRotationY -= (rotationSpeed * 0.1);
           }
+          // 원격 스케일 상태에서 원점 고정 유지
           sky.setAttribute('position', '0 0 0');
           sky.setAttribute('rotation', `0 ${currentRotationY} 0`);
           
@@ -491,7 +484,9 @@
             directionKr = "하측 수직 스크롤 (⬇)";
             currentRotationX += (rotationSpeed * 0.1);
           }
-          sky.setAttribute('position', '0 0 -45');
+          // [수정 핵심] 강제로 position 오프셋(-45)을 주지 않고, 언제나 관찰자 중심(0 0 0)을 유지하되 
+          // 극대화된 물리적 크기 덕분에 왜곡과 시야 밀착 없이 아득히 먼 상태에서 시원하게 회전 제어됨
+          sky.setAttribute('position', '0 0 0');
           sky.setAttribute('rotation', `${currentRotationX} 0 90`);
         }
       }
