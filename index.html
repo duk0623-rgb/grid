@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V18.0</title>
+  <title>VR 시기능 훈련 시스템 V18.1</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -112,8 +112,8 @@
     </div>
 
     <div class="panel-group">
-      <label>🏁 배경 격자 분할 밀도(촘촘함) <span class="display-value" id="grid-size-txt">8</span></label>
-      <input type="range" id="grid-size-slider" min="4" max="32" value="8" step="1">
+      <label>🏁 배경 격자 크기 조절 <span class="display-value" id="grid-size-txt">보통 (6)</span></label>
+      <input type="range" id="grid-size-slider" min="2" max="15" value="6" step="1">
     </div>
 
     <div class="panel-group">
@@ -159,7 +159,7 @@
       <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="40" height="120" segments-radial="32" material="shader: flat; repeat: 6 3; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="40" height="120" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
@@ -190,33 +190,46 @@
   </a-scene>
 
   <script>
-    let rowsCols = 8;
+    // 기본 격자 한 칸의 반복 횟수 (낮을수록 작아지고 촘촘해짐)
+    let currentGridSize = 6; 
     
-    function redrawBackgroundGrid() {
+    // 격자를 그리고 실시간으로 매핑 크기를 매칭해주는 고성능 함수
+    function updateGridTexture() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
       
-      const unitSize = 64; 
-      const dynamicSize = rowsCols * unitSize;
+      // 내부 캔버스는 언제나 깨끗하고 선명하게 고정 처리
+      bgCanvas.width = 512;
+      bgCanvas.height = 512;
+      bgCtx.clearRect(0, 0, 512, 512);
       
-      bgCanvas.width = dynamicSize;
-      bgCanvas.height = dynamicSize;
-      
-      bgCtx.clearRect(0, 0, dynamicSize, dynamicSize);
-      
-      for (let r = 0; r < rowsCols; r++) {
-        for (let c = 0; c < rowsCols; c++) {
+      // 언제나 완벽한 체스판 구조 유지
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
           bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
-          bgCtx.fillRect(c * unitSize, r * unitSize, unitSize, unitSize);
+          bgCtx.fillRect(c * 64, r * 64, 64, 64);
         }
       }
       
       const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material && sky.components.material.material.map) {
-        sky.components.material.material.map.needsUpdate = true;
+      if (sky) {
+        // [핵심 버그 수정 연동] 슬라이더 값에 맞춰 실시간으로 repeat 값을 세팅!
+        // 원장님의 직관에 맞춰 수식을 제어합니다.
+        let repeatX = currentGridSize * 2;
+        let repeatY = currentGridSize;
+        
+        sky.setAttribute('material', {
+          shader: 'flat',
+          src: '#bgCheckerCanvas',
+          side: 'back',
+          repeat: `${repeatX} ${repeatY}`
+        });
+        
+        if (sky.components.material && sky.components.material.material.map) {
+          sky.components.material.material.map.needsUpdate = true;
+        }
       }
     }
-    redrawBackgroundGrid();
 
     let audioCtx = null; let score = 0; let randomRange = 1.40; 
     let rotationSpeed = 2; let isTrainingActive = false; let isPopping = false; 
@@ -238,13 +251,22 @@
       document.getElementById('auto-time-group').style.display = (runMode === 'auto') ? 'block' : 'none';
     }
 
+    // [격자 크기 리스너] 왼쪽으로 낮추면 진짜 작아지고, 오른쪽으로 밀면 진짜 커집니다!
     document.getElementById('grid-size-slider').addEventListener('input', (e) => {
-      rowsCols = parseInt(e.target.value);
-      document.getElementById('grid-size-txt').innerText = rowsCols;
-      redrawBackgroundGrid();
+      currentGridSize = parseInt(e.target.value);
+      
+      let labelText = currentGridSize;
+      if (currentGridSize <= 3) labelText = `매우 작게 (${currentGridSize})`;
+      else if (currentGridSize <= 5) labelText = `작게 (${currentGridSize})`;
+      else if (currentGridSize <= 8) labelText = `보통 (${currentGridSize})`;
+      else if (currentGridSize <= 12) labelText = `크게 (${currentGridSize})`;
+      else labelText = `매우 크게 (${currentGridSize})`;
+      
+      document.getElementById('grid-size-txt').innerText = labelText;
+      updateGridTexture();
     });
 
-    // [신규 엔진 리스너] 배경 축소 슬라이더 제어 스크립트 연동
+    // 배경 반경 크기 실시간 축소/확대 제어 리스너
     document.getElementById('bg-size-slider').addEventListener('input', (e) => {
       const radiusVal = parseInt(e.target.value);
       document.getElementById('bg-size-txt').innerText = radiusVal + "m";
@@ -585,6 +607,8 @@
       if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
     }
 
+    // 초기화 시 격자 텍스처를 첫 적용
+    updateGridTexture();
     setupVRHardwareLayers();
     animateBackgroundAndScroll();
     requestAnimationFrame(checkTargetGazeIntersection);
