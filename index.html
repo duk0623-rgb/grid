@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V16.5</title>
+  <title>VR 시기능 훈련 시스템 V18.0</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -112,8 +112,13 @@
     </div>
 
     <div class="panel-group">
-      <label>🏁 저시력용 배경 격자 크기 조절 <span class="display-value" id="grid-size-txt">4</span></label>
-      <input type="range" id="grid-size-slider" min="2" max="16" value="4" step="1">
+      <label>🏁 배경 격자 분할 밀도(촘촘함) <span class="display-value" id="grid-size-txt">8</span></label>
+      <input type="range" id="grid-size-slider" min="4" max="32" value="8" step="1">
+    </div>
+
+    <div class="panel-group">
+      <label>🔍 배경 자극 사이즈 축소(반경) <span class="display-value" id="bg-size-txt">40m</span></label>
+      <input type="range" id="bg-size-slider" min="10" max="60" value="40" step="5">
     </div>
 
     <div class="panel-group">
@@ -151,10 +156,10 @@
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true">
     <a-assets>
-      <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
+      <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="60" height="120" segments-radial="32" material="shader: flat; repeat: 6 3; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="40" height="120" segments-radial="32" material="shader: flat; repeat: 6 3; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
@@ -185,39 +190,27 @@
   </a-scene>
 
   <script>
-    let rowsCols = 4;
-    function redrawBackgroundGrid() {
-      const bgCanvas = document.getElementById('bgCheckerCanvas');
-      const bgCtx = bgCanvas.getContext('2d');
-      const bSize = 512;
-      const bW = bSize / rowsCols; const bH = bSize / rowsCols;
-      for (let r = 0; r < rowsCols; r++) {
-        for (let c = 0; c < rowsCols; r++) { // 무한루프 방지를 위해 내부 r 변수 수정 수정
-          for (let c = 0; c < rowsCols; c++) {
-            bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
-            bgCtx.fillRect(c * bW, r * bH, bW, bH);
-          }
-        }
-      }
-      const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material) {
-        sky.components.material.material.map.needsUpdate = true;
-      }
-    }
+    let rowsCols = 8;
     
-    // 오타 및 격자 그리기 로직 안전화
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
-      const bSize = 512;
-      const bW = bSize / rowsCols; const bH = bSize / rowsCols;
-      bgCtx.clearRect(0, 0, bSize, bSize);
+      
+      const unitSize = 64; 
+      const dynamicSize = rowsCols * unitSize;
+      
+      bgCanvas.width = dynamicSize;
+      bgCanvas.height = dynamicSize;
+      
+      bgCtx.clearRect(0, 0, dynamicSize, dynamicSize);
+      
       for (let r = 0; r < rowsCols; r++) {
         for (let c = 0; c < rowsCols; c++) {
           bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
-          bgCtx.fillRect(c * bW, r * bH, bW, bH);
+          bgCtx.fillRect(c * unitSize, r * unitSize, unitSize, unitSize);
         }
       }
+      
       const sky = document.getElementById('rotating-bg');
       if(sky && sky.components.material && sky.components.material.material.map) {
         sky.components.material.material.map.needsUpdate = true;
@@ -236,7 +229,6 @@
     let autoStep = 0; 
     let internalAutoTime = 0;
 
-    // 배경 스크롤 움직임 제어 변수
     let currentRotationY = 0;
     let currentRotationX = 0;
 
@@ -251,6 +243,17 @@
       document.getElementById('grid-size-txt').innerText = rowsCols;
       redrawBackgroundGrid();
     });
+
+    // [신규 엔진 리스너] 배경 축소 슬라이더 제어 스크립트 연동
+    document.getElementById('bg-size-slider').addEventListener('input', (e) => {
+      const radiusVal = parseInt(e.target.value);
+      document.getElementById('bg-size-txt').innerText = radiusVal + "m";
+      const sky = document.getElementById('rotating-bg');
+      if(sky) {
+        sky.setAttribute('radius', radiusVal);
+      }
+    });
+
     document.getElementById('range-slider').addEventListener('input', (e) => {
       randomRange = parseFloat(e.target.value);
       document.getElementById('range-txt').innerText = randomRange.toFixed(2);
@@ -425,10 +428,6 @@
       }, 400); 
     }
 
-    /* [핵심 수정] 원기둥 세움/눕힘 알고리즘 반영 및 회전 기능 완벽 제거
-      - 수평 모드 (right, left) -> 원기둥을 수직(0 0 0)으로 유지하고 좌우 스크롤(Y축 회전)
-      - 수직 모드 (up, down) -> 원기둥을 수평(0 0 90)으로 눕히고 상하 스크롤(X축 회전)
-    */
     function animateBackgroundAndScroll() {
       requestAnimationFrame(animateBackgroundAndScroll);
       if (!isTrainingActive) return;
@@ -439,7 +438,6 @@
       if (runMode === "manual") {
         activeBgDirection = document.getElementById('manual-dir-select').value;
       } else {
-        // 자동 모드 전환 시에도 회전을 제외한 수평/수직 순환 구조 적용
         const steps = ["right", "left", "up", "down"];
         activeBgDirection = steps[autoStep];
       }
@@ -449,7 +447,6 @@
 
       if (sky) {
         if (activeBgDirection === "right" || activeBgDirection === "left") {
-          // 1. 수평 모드: 원기둥을 똑바로 세우고 Y축 회전 진행
           if (activeBgDirection === "right") {
             directionKr = "우측 수평 스크롤 (➔)";
             currentRotationY += (rotationSpeed * 0.1);
@@ -460,7 +457,6 @@
           sky.setAttribute('rotation', `0 ${currentRotationY} 0`);
           
         } else if (activeBgDirection === "up" || activeBgDirection === "down") {
-          // 2. 수직 모드: 원기둥을 Z축 기준 90도 눕히고 X축 회전 진행
           if (activeBgDirection === "up") {
             directionKr = "상측 수직 스크롤 (⬆)";
             currentRotationX -= (rotationSpeed * 0.1);
@@ -494,7 +490,7 @@
           const changePeriod = parseInt(document.getElementById('auto-interval-select').value);
           if (internalAutoTime >= changePeriod) {
             internalAutoTime = 0;
-            autoStep = (autoStep + 1) % 4; // 4가지 방향으로 변경
+            autoStep = (autoStep + 1) % 4; 
           }
         }
 
