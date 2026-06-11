@@ -154,7 +154,7 @@
       <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="60" height="120" segments-radial="32" material="shader: flat; repeat: 6 3; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="60" height="120" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
@@ -219,10 +219,19 @@
       }
       
       const sky = document.getElementById('rotating-bg');
-      if(sky && sky.components.material && sky.components.material.material.map) {
-        sky.components.material.material.map.needsUpdate = true;
-        sky.setAttribute('material', 'src', '');
-        sky.setAttribute('material', 'src', '#bgCheckerCanvas');
+      if (sky && sky.components.material) {
+        // 격자 수가 바뀌어도 깨지지 않도록 repeat 비율을 유연하게 조정
+        const repeatX = Math.max(4, Math.floor(48 / rowsCols));
+        const repeatY = Math.max(2, Math.floor(24 / rowsCols));
+        
+        sky.setAttribute('material', {
+          src: '#bgCheckerCanvas',
+          repeat: `${repeatX} ${repeatY}`
+        });
+        
+        if (sky.components.material.material && sky.components.material.material.map) {
+          sky.components.material.material.map.needsUpdate = true;
+        }
       }
     }
     redrawBackgroundGrid();
@@ -593,7 +602,7 @@
 
     setupVRHardwareLayers();
     animateBackgroundAndScroll();
-    requestAnimationFrame(checkTargetGazeIntersection);
+    requestAnimationFrame(checkTargetGazeIntersection)
   </script>
 </body>
 </html>
