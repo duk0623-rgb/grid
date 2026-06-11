@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V18.2</title>
+  <title>VR 시기능 훈련 시스템 V18.3</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -580,10 +580,22 @@
       if (sceneEl && sceneEl.is('vr-mode')) sceneEl.exitVR();
     }
 
+    // [최종 해결] 원터치 구동을 위해 VR 모드 진입 명령을 최우선 순위로 재배치한 시작 함수
     function startFusionTraining() {
-      isTrainingActive = true; isPopping = false;
+      // 1. 보안 규정 돌파: 클릭 즉시 가장 먼저 VR 모드 진입을 브라우저에 명령합니다.
+      const sceneEl = document.querySelector('a-scene');
+      if (sceneEl.hasLoaded) { 
+        sceneEl.enterVR(); 
+      } else { 
+        sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); 
+      }
+
+      // 2. VR 진입과 동시에 백그라운드에서 나머지 오디오 및 타이머 시스템 가동
+      isTrainingActive = true; 
+      isPopping = false;
       targetSeconds = parseInt(document.getElementById('training-time-select').value);
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
       document.getElementById('control-panel').style.display = 'none';
       document.getElementById('exit-vr-control').style.display = 'block';
       document.getElementById('history-log').innerHTML = ''; 
@@ -594,12 +606,8 @@
       document.getElementById('magic-eye-board').setAttribute('visible', 'true');
       renderRandomTargetsOnly(); 
       startElapsedClock();
-      
-      const sceneEl = document.querySelector('a-scene');
-      if (sceneEl.hasLoaded) { sceneEl.enterVR(); } else { sceneEl.addEventListener('loaded', () => { sceneEl.enterVR(); }); }
     }
 
-    // [핵심 해결] 이름이 바뀐 텍스처 초기화 함수로 명확하게 호출을 변경
     updateGridTexture();
     setupVRHardwareLayers();
     animateBackgroundAndScroll();
