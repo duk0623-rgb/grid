@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.5</title>
+  <title>VR 시기능 훈련 시스템 V17.4</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -154,11 +154,11 @@
       <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="250" height="500" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="120" height="240" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
-        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 500; interval: 10;"></a-entity>
+        <a-entity id="centerFixationRay" raycaster="objects: .gaze-secure-trigger; far: 100; interval: 10;"></a-entity>
         
         <a-ring id="gaze-ring-left" radius-inner="0.02" radius-outer="0.03" color="#000000" position="-0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: left"></a-ring>
         <a-ring id="gaze-ring-right" radius-inner="0.02" radius-outer="0.03" color="#000000" position="0.03 0 -1" material="shader: flat; opacity: 0.9; depthTest: false;" stereo-eye-lock="eye: right"></a-ring>
@@ -221,10 +221,9 @@
       
       const sky = document.getElementById('rotating-bg');
       if (sky && sky.components.material) {
-        // [수정포인트] 커진 공간 규모(반지름 250)에 비례하도록 repeat 매핑 연산 비율을 상향하여 
-        // 실린더가 어느 방향으로 누워도 촘촘해지거나 압착되지 않도록 고정
-        const repeatX = Math.max(16, Math.floor(192 / rowsCols));
-        const repeatY = Math.max(8, Math.floor(96 / rowsCols));
+        // 거리 원격화에 맞춰 왜곡 현상이 없도록 매핑 스케일(repeat) 비율 최적화 유지
+        const repeatX = Math.max(8, Math.floor(96 / rowsCols));
+        const repeatY = Math.max(4, Math.floor(48 / rowsCols));
         
         const currentRot = sky.getAttribute('rotation');
         const currentPos = sky.getAttribute('position');
@@ -472,7 +471,7 @@
             directionKr = "좌측 수평 스크롤 (⬅)";
             currentRotationY -= (rotationSpeed * 0.1);
           }
-          // 원격 스케일 상태에서 원점 고정 유지
+          // 수평 이동 시 시야 중심 정렬 유지
           sky.setAttribute('position', '0 0 0');
           sky.setAttribute('rotation', `0 ${currentRotationY} 0`);
           
@@ -484,9 +483,9 @@
             directionKr = "하측 수직 스크롤 (⬇)";
             currentRotationX += (rotationSpeed * 0.1);
           }
-          // [수정 핵심] 강제로 position 오프셋(-45)을 주지 않고, 언제나 관찰자 중심(0 0 0)을 유지하되 
-          // 극대화된 물리적 크기 덕분에 왜곡과 시야 밀착 없이 아득히 먼 상태에서 시원하게 회전 제어됨
-          sky.setAttribute('position', '0 0 0');
+          // [수정 핵심] 수직 90도 회전 시 실린더 내벽이 면으로 밀착하여 코앞을 가로막지 않도록, 
+          // 깊이(Z축) 방향으로 -45 만큼 오프셋을 주어 저 멀리 아득한 정면에 투사되도록 물리적 간격 조정
+          sky.setAttribute('position', '0 0 -45');
           sky.setAttribute('rotation', `${currentRotationX} 0 90`);
         }
       }
