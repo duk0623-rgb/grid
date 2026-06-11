@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.4</title>
+  <title>VR 시기능 훈련 시스템 V16.0</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -96,10 +96,12 @@
     <div id="manual-direction-group" class="panel-group">
       <label>🗺️ 수동 배경 이동 방향 선택</label>
       <select id="manual-dir-select">
-        <option value="right" selected>우측으로 이동 (수평 스크롤)</option>
-        <option value="left">좌측으로 이동 (수평 스크롤)</option>
-        <option value="up">상측으로 이동 (수직 눕힘 스크롤)</option>
-        <option value="down">하측으로 이동 (수직 눕힘 스크롤)</option>
+        <option value="right" selected>우측으로 이동 (오른쪽 스크롤)</option>
+        <option value="left">좌측으로 이동 (왼쪽 스크롤)</option>
+        <option value="up">상측으로 이동 (위쪽 스크롤)</option>
+        <option value="down">하측으로 이동 (아래쪽 스크롤)</option>
+        <option value="clockwise">시계방향 회전</option>
+        <option value="counterclockwise">반시계방향 회전</option>
       </select>
     </div>
 
@@ -112,8 +114,8 @@
     </div>
 
     <div class="panel-group">
-      <label>🏁 저시력용 배경 격자 크기 <span class="display-value" id="grid-size-txt">값: 8 (기본)</span></label>
-      <input type="range" id="grid-size-slider" min="1" max="5" value="2" step="1">
+      <label>🏁 배경 격자 크기 조절 <span class="display-value" id="grid-size-txt">4</span></label>
+      <input type="range" id="grid-size-slider" min="1" max="12" value="4" step="1">
     </div>
 
     <div class="panel-group">
@@ -122,7 +124,7 @@
     </div>
 
     <div class="panel-group">
-      <label>🔄 배경 스크롤 속도 <span class="display-value" id="bg-speed-txt">2</span></label>
+      <label>🔄 배경 스크롤/회전 속도 <span class="display-value" id="bg-speed-txt">2</span></label>
       <input type="range" id="bg-speed-slider" min="0" max="60" value="2" step="1">
     </div>
     
@@ -151,10 +153,10 @@
 
   <a-scene background="color: #000000" vr-mode-ui="enabled: true">
     <a-assets>
-      <canvas id="bgCheckerCanvas"></canvas>
+      <canvas id="bgCheckerCanvas" width="512" height="512"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="120" height="240" segments-radial="32" material="shader: flat; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-sky id="rotating-bg" src="#bgCheckerCanvas" radius="50" material="shader: flat; repeat: 16 16; side: back;" stereo-eye-lock="eye: both"></a-sky>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
@@ -185,60 +187,21 @@
   </a-scene>
 
   <script>
-    let currentStep = 2;
-    let rowsCols = 8;
-
-    function mapStepToRowsCols(step) {
-      if (step === 1) return 6;
-      if (step === 2) return 8;
-      if (step === 3) return 10;
-      if (step === 4) return 12;
-      if (step === 5) return 14;
-      return 8;
-    }
-
-    let currentRotationY = 0;
-    let currentRotationX = 0;
-
+    let rowsCols = 4;
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
-      
-      const unitSize = 64; 
-      const dynamicSize = rowsCols * unitSize;
-      
-      bgCanvas.width = dynamicSize;
-      bgCanvas.height = dynamicSize;
-      
-      bgCtx.clearRect(0, 0, dynamicSize, dynamicSize);
-      
+      const bSize = 512;
+      const bW = bSize / rowsCols; const bH = bSize / rowsCols;
       for (let r = 0; r < rowsCols; r++) {
         for (let c = 0; c < rowsCols; c++) {
           bgCtx.fillStyle = ((r + c) % 2 === 0) ? '#FFFFFF' : '#000000';
-          bgCtx.fillRect(c * unitSize, r * unitSize, unitSize, unitSize);
+          bgCtx.fillRect(c * bW, r * bH, bW, bH);
         }
       }
-      
       const sky = document.getElementById('rotating-bg');
-      if (sky && sky.components.material) {
-        // 거리 원격화에 맞춰 왜곡 현상이 없도록 매핑 스케일(repeat) 비율 최적화 유지
-        const repeatX = Math.max(8, Math.floor(96 / rowsCols));
-        const repeatY = Math.max(4, Math.floor(48 / rowsCols));
-        
-        const currentRot = sky.getAttribute('rotation');
-        const currentPos = sky.getAttribute('position');
-        
-        sky.setAttribute('material', {
-          src: '#bgCheckerCanvas',
-          repeat: `${repeatX} ${repeatY}`
-        });
-        
-        if (currentRot) sky.setAttribute('rotation', currentRot);
-        if (currentPos) sky.setAttribute('position', currentPos);
-        
-        if (sky.components.material.material && sky.components.material.material.map) {
-          sky.components.material.material.map.needsUpdate = true;
-        }
+      if(sky && sky.components.material) {
+        sky.components.material.material.map.needsUpdate = true;
       }
     }
     redrawBackgroundGrid();
@@ -254,6 +217,9 @@
     let autoStep = 0; 
     let internalAutoTime = 0;
 
+    // 배경 실시간 좌표 축적을 위한 변수
+    let rotX = 0; let rotY = 0; let rotZ = 0;
+
     function toggleRunModeUI() {
       const runMode = document.getElementById('run-mode-select').value;
       document.getElementById('manual-direction-group').style.display = (runMode === 'manual') ? 'block' : 'none';
@@ -261,16 +227,10 @@
     }
 
     document.getElementById('grid-size-slider').addEventListener('input', (e) => {
-      currentStep = parseInt(e.target.value);
-      rowsCols = mapStepToRowsCols(currentStep);
-      
-      let labelText = `값: ${rowsCols}`;
-      if (rowsCols === 8) labelText += " (기본)";
-      
-      document.getElementById('grid-size-txt').innerText = labelText;
+      rowsCols = parseInt(e.target.value);
+      document.getElementById('grid-size-txt').innerText = rowsCols;
       redrawBackgroundGrid();
     });
-
     document.getElementById('range-slider').addEventListener('input', (e) => {
       randomRange = parseFloat(e.target.value);
       document.getElementById('range-txt').innerText = randomRange.toFixed(2);
@@ -281,6 +241,7 @@
       document.getElementById('bg-speed-txt').innerText = rotationSpeed;
     });
 
+    // 실시간 대시보드 로그 내림차순 기록실
     function addHistoryLog(status, activeEye, typeMode) {
       const logContainer = document.getElementById('history-log');
       const now = new Date();
@@ -298,6 +259,7 @@
       logContainer.insertBefore(logItem, logContainer.firstChild);
     }
 
+    // [핵심 변경] 풍선은 언제나 100% 무작위(Random) 위치에 단독 매칭됨
     function renderRandomTargetsOnly() {
       if (!isTrainingActive) return;
 
@@ -318,6 +280,7 @@
       let baseZ = camPos.z - zOffset; 
       let spreadFactor = zOffset / 4.2;
 
+      // 풍선 위치 무작위 산출
       let randX = camPos.x + (Math.random() - 0.5) * (randomRange * 1.3 * spreadFactor);
       let randY = camPos.y + (Math.random() - 0.5) * (randomRange * 1.0 * spreadFactor);
 
@@ -401,6 +364,8 @@
       if (raycasterComponent && raycasterComponent.intersections && raycasterComponent.intersections.length > 0) {
         if (!gazeTimer) {
           document.getElementById('status-txt').innerText = "🎯 융합 인지 및 주시 유지 (1초)...";
+          
+          // [정밀 주시 완성] 1초 고정
           gazeTimer = setTimeout(() => {
             const secureTrigger = document.getElementById('gaze-collision-trigger');
             if (secureTrigger) { secureTrigger.classList.remove('gaze-secure-trigger'); }
@@ -445,6 +410,7 @@
       }, 400); 
     }
 
+    // [핵심 로직] 치료사님이 선택한 배경의 움직임 방향 물리적 반영 알고리즘
     function animateBackgroundAndScroll() {
       requestAnimationFrame(animateBackgroundAndScroll);
       if (!isTrainingActive) return;
@@ -455,41 +421,28 @@
       if (runMode === "manual") {
         activeBgDirection = document.getElementById('manual-dir-select').value;
       } else {
-        const steps = ["right", "left", "up", "down"];
+        const steps = ["right", "left", "up", "down", "clockwise", "counterclockwise"];
         activeBgDirection = steps[autoStep];
       }
 
-      const sky = document.getElementById('rotating-bg');
+      // 대시보드 텍스트 매칭 안내
       let directionKr = "";
-
-      if (sky) {
-        if (activeBgDirection === "right" || activeBgDirection === "left") {
-          if (activeBgDirection === "right") {
-            directionKr = "우측 수평 스크롤 (➔)";
-            currentRotationY += (rotationSpeed * 0.1);
-          } else {
-            directionKr = "좌측 수평 스크롤 (⬅)";
-            currentRotationY -= (rotationSpeed * 0.1);
-          }
-          // 수평 이동 시 시야 중심 정렬 유지
-          sky.setAttribute('position', '0 0 0');
-          sky.setAttribute('rotation', `0 ${currentRotationY} 0`);
-          
-        } else if (activeBgDirection === "up" || activeBgDirection === "down") {
-          if (activeBgDirection === "up") {
-            directionKr = "상측 수직 스크롤 (⬆)";
-            currentRotationX -= (rotationSpeed * 0.1);
-          } else {
-            directionKr = "하측 수직 스크롤 (⬇)";
-            currentRotationX += (rotationSpeed * 0.1);
-          }
-          // [수정] 수직 모드일 때 배경이 눈앞으로 다가오지 않도록 깊이(Z)를 -90으로 멀리 고정
-          sky.setAttribute('position', '0 0 -90');
-          sky.setAttribute('rotation', `${currentRotationX} 0 90`);
-        }
+      switch(activeBgDirection) {
+        case "right": directionKr = "우측 스크롤 (➔)"; rotY += (rotationSpeed * 0.1); break;
+        case "left": directionKr = "좌측 스크롤 (⬅)"; rotY -= (rotationSpeed * 0.1); break;
+        case "up": directionKr = "상측 스크롤 (⬆)"; rotX -= (rotationSpeed * 0.1); break;
+        case "down": directionKr = "하측 스크롤 (⬇)"; rotX += (rotationSpeed * 0.1); break;
+        case "clockwise": directionKr = "시계방향 회전 (↻)"; rotZ += (rotationSpeed * 0.1); break;
+        case "counterclockwise": directionKr = "반시계방향 회전 (↺)"; rotZ -= (rotationSpeed * 0.1); break;
       }
       
       document.getElementById('active-pattern-txt').innerText = (runMode === "manual" ? "수동: " : "자동: ") + directionKr;
+
+      // 3D 가상 배경 공간 드럼 실제 구동
+      const sky = document.getElementById('rotating-bg');
+      if (sky) {
+        sky.setAttribute('rotation', `${rotX} ${rotY} ${rotZ}`);
+      }
     }
 
     function startElapsedClock() {
@@ -506,12 +459,13 @@
         let totalSec = (targetSeconds - totalSecondsElapsed) % 60;
         document.getElementById('val-time').innerText = `${totalMin.toString().padStart(2, '0')}:${totalSec.toString().padStart(2, '0')}`;
         
+        // 자동 모드일 때 시간 주기 전환 엔진
         const runMode = document.getElementById('run-mode-select').value;
         if (runMode === "auto") {
           const changePeriod = parseInt(document.getElementById('auto-interval-select').value);
           if (internalAutoTime >= changePeriod) {
             internalAutoTime = 0;
-            autoStep = (autoStep + 1) % 4; 
+            autoStep = (autoStep + 1) % 6; 
           }
         }
 
@@ -608,7 +562,7 @@
 
     setupVRHardwareLayers();
     animateBackgroundAndScroll();
-    requestAnimationFrame(checkTargetGazeIntersection)
+    requestAnimationFrame(checkTargetGazeIntersection);
   </script>
 </body>
 </html>
