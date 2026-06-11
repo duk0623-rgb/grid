@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V18.0</title>
+  <title>VR 시기능 훈련 시스템 V17.0</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -112,13 +112,8 @@
     </div>
 
     <div class="panel-group">
-      <label>🏁 배경 격자 분할 밀도(촘촘함) <span class="display-value" id="grid-size-txt">8</span></label>
-      <input type="range" id="grid-size-slider" min="4" max="32" value="8" step="1">
-    </div>
-
-    <div class="panel-group">
-      <label>🔍 배경 자극 사이즈 축소(반경) <span class="display-value" id="bg-size-txt">40m</span></label>
-      <input type="range" id="bg-size-slider" min="10" max="60" value="40" step="5">
+      <label>🏁 저시력용 배경 격자 크기 조절 <span class="display-value" id="grid-size-txt">8</span></label>
+      <input type="range" id="grid-size-slider" min="2" max="64" value="8" step="1">
     </div>
 
     <div class="panel-group">
@@ -159,7 +154,7 @@
       <canvas id="bgCheckerCanvas"></canvas>
     </a-assets>
 
-    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="40" height="120" segments-radial="32" material="shader: flat; repeat: 6 3; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
+    <a-cylinder id="rotating-bg" src="#bgCheckerCanvas" radius="60" height="120" segments-radial="32" material="shader: flat; repeat: 6 3; side: back;" stereo-eye-lock="eye: both" position="0 0 0"></a-cylinder>
 
     <a-entity id="cameraRig">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0">
@@ -192,13 +187,16 @@
   <script>
     let rowsCols = 8;
     
+    /* [혁신 수정] 도화지 크기 자동 스케일링 엔진 (해상도 매칭 오류 원천 차단) */
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
       
+      // 1칸당 크기를 64픽셀로 못 박아 오차를 차단합니다.
       const unitSize = 64; 
       const dynamicSize = rowsCols * unitSize;
       
+      // 도화지의 폭과 높이를 격자의 정수 배율로 가변 조절합니다.
       bgCanvas.width = dynamicSize;
       bgCanvas.height = dynamicSize;
       
@@ -243,17 +241,6 @@
       document.getElementById('grid-size-txt').innerText = rowsCols;
       redrawBackgroundGrid();
     });
-
-    // [신규 엔진 리스너] 배경 축소 슬라이더 제어 스크립트 연동
-    document.getElementById('bg-size-slider').addEventListener('input', (e) => {
-      const radiusVal = parseInt(e.target.value);
-      document.getElementById('bg-size-txt').innerText = radiusVal + "m";
-      const sky = document.getElementById('rotating-bg');
-      if(sky) {
-        sky.setAttribute('radius', radiusVal);
-      }
-    });
-
     document.getElementById('range-slider').addEventListener('input', (e) => {
       randomRange = parseFloat(e.target.value);
       document.getElementById('range-txt').innerText = randomRange.toFixed(2);
