@@ -212,6 +212,9 @@
       const sky = document.getElementById('rotating-bg');
       if(sky && sky.components.material && sky.components.material.material.map) {
         sky.components.material.material.map.needsUpdate = true;
+        // [수정 핵심] 조종기를 조작할 때 A-Frame 내부에 강제로 변경 사항을 전파하도록 처리
+        sky.setAttribute('material', 'src', '');
+        sky.setAttribute('material', 'src', '#bgCheckerCanvas');
       }
     }
     redrawBackgroundGrid();
