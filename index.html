@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.4</title>
+  <title>VR 시기능 훈련 시스템 V17.5</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -200,6 +200,17 @@
     let currentRotationY = 0;
     let currentRotationX = 0;
 
+    // 현재 스크롤 방향 상태를 실시간 확인하기 위한 도우미 함수
+    function getActiveScrollDirection() {
+      const runMode = document.getElementById('run-mode-select').value;
+      if (runMode === "manual") {
+        return document.getElementById('manual-dir-select').value;
+      } else {
+        const steps = ["right", "left", "up", "down"];
+        return steps[autoStep];
+      }
+    }
+
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
@@ -221,12 +232,10 @@
       
       const sky = document.getElementById('rotating-bg');
       if (sky && sky.components.material) {
-        // 거리 원격화에 맞춰 왜곡 현상이 없도록 매핑 스케일(repeat) 비율 최적화 유지
         const repeatX = Math.max(8, Math.floor(96 / rowsCols));
         const repeatY = Math.max(4, Math.floor(48 / rowsCols));
         
         const currentRot = sky.getAttribute('rotation');
-        const currentPos = sky.getAttribute('position');
         
         sky.setAttribute('material', {
           src: '#bgCheckerCanvas',
@@ -234,7 +243,15 @@
         });
         
         if (currentRot) sky.setAttribute('rotation', currentRot);
-        if (currentPos) sky.setAttribute('position', currentPos);
+        
+        // [수정 포인트] 풍선이 터지면서 캔버스가 리드로우될 때, 현재 방향 모드를 검사하여
+        // 수직 훈련 모드('up', 'down') 상태라면 오프셋 거리(0 0 -45)가 파괴되지 않고 완벽하게 강제 고정되도록 예외 처리
+        const activeDir = getActiveScrollDirection();
+        if (activeDir === "up" || activeDir === "down") {
+          sky.setAttribute('position', '0 0 -45');
+        } else {
+          sky.setAttribute('position', '0 0 0');
+        }
         
         if (sky.components.material.material && sky.components.material.material.map) {
           sky.components.material.material.map.needsUpdate = true;
@@ -449,17 +466,9 @@
       requestAnimationFrame(animateBackgroundAndScroll);
       if (!isTrainingActive) return;
 
-      const runMode = document.getElementById('run-mode-select').value;
-      let activeBgDirection = "right";
-
-      if (runMode === "manual") {
-        activeBgDirection = document.getElementById('manual-dir-select').value;
-      } else {
-        const steps = ["right", "left", "up", "down"];
-        activeBgDirection = steps[autoStep];
-      }
-
+      const activeBgDirection = getActiveScrollDirection();
       const sky = document.getElementById('rotating-bg');
+      const runMode = document.getElementById('run-mode-select').value;
       let directionKr = "";
 
       if (sky) {
@@ -471,7 +480,6 @@
             directionKr = "좌측 수평 스크롤 (⬅)";
             currentRotationY -= (rotationSpeed * 0.1);
           }
-          // 수평 이동 시 시야 중심 정렬 유지
           sky.setAttribute('position', '0 0 0');
           sky.setAttribute('rotation', `0 ${currentRotationY} 0`);
           
@@ -483,8 +491,6 @@
             directionKr = "하측 수직 스크롤 (⬇)";
             currentRotationX += (rotationSpeed * 0.1);
           }
-          // [수정 핵심] 수직 90도 회전 시 실린더 내벽이 면으로 밀착하여 코앞을 가로막지 않도록, 
-          // 깊이(Z축) 방향으로 -45 만큼 오프셋을 주어 저 멀리 아득한 정면에 투사되도록 물리적 간격 조정
           sky.setAttribute('position', '0 0 -45');
           sky.setAttribute('rotation', `${currentRotationX} 0 90`);
         }
