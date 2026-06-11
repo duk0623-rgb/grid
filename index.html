@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>VR 시기능 훈련 시스템 V17.5</title>
+  <title>VR 시기능 훈련 시스템 V17.6</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Malgun Gothic', sans-serif; user-select: none; }
@@ -185,7 +185,6 @@
   </a-scene>
 
   <script>
-    // [수정] 기본 격자 수를 일반인 표격 규격인 8로 변경
     let rowsCols = 8; 
     
     function redrawBackgroundGrid() {
@@ -468,7 +467,8 @@
         
         let totalMin = Math.floor((targetSeconds - totalSecondsElapsed) / 60);
         let totalSec = (targetSeconds - totalSecondsElapsed) % 60;
-        document.getElementById('val-time').innerText = `${totalMin.toString().padStart(2, '0')}:${totalSec.toString().padStart(2, '0');}`;
+        // [긴급 수정] 중복된 오타 세미콜론(;)을 완전히 삭제했습니다.
+        document.getElementById('val-time').innerText = `${totalMin.toString().padStart(2, '0')}:${totalSec.toString().padStart(2, '0')}`;
         
         const runMode = document.getElementById('run-mode-select').value;
         if (runMode === "auto") {
