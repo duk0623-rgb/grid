@@ -199,6 +199,9 @@
       return 8;
     }
 
+    let currentRotationY = 0;
+    let currentRotationX = 0;
+
     function redrawBackgroundGrid() {
       const bgCanvas = document.getElementById('bgCheckerCanvas');
       const bgCtx = bgCanvas.getContext('2d');
@@ -224,10 +227,18 @@
         const repeatX = Math.max(4, Math.floor(48 / rowsCols));
         const repeatY = Math.max(2, Math.floor(24 / rowsCols));
         
+        // [수정 포인트] material을 리셋할 때 기존의 회전값(rotation)이 유실되거나 꼬이지 않도록 명확히 분리 및 보존
+        const currentRot = sky.getAttribute('rotation');
+        
         sky.setAttribute('material', {
           src: '#bgCheckerCanvas',
           repeat: `${repeatX} ${repeatY}`
         });
+        
+        // 기존 회전 상태를 안전하게 재할당하여 수직 모드에서 다가오는 버그 차단
+        if (currentRot) {
+          sky.setAttribute('rotation', currentRot);
+        }
         
         if (sky.components.material.material && sky.components.material.material.map) {
           sky.components.material.material.map.needsUpdate = true;
@@ -246,9 +257,6 @@
     let gazeTimer = null;
     let autoStep = 0; 
     let internalAutoTime = 0;
-
-    let currentRotationY = 0;
-    let currentRotationX = 0;
 
     function toggleRunModeUI() {
       const runMode = document.getElementById('run-mode-select').value;
